@@ -1,0 +1,14 @@
+# Local Docker Data (CRITICAL to ignore)
+postgres_data/
+kafka_data/
+airflow_logs/
+
+# Python environment & cache
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# macOS system files
+.DS_Store
