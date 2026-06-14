@@ -1,0 +1,27 @@
+{
+  "name": "retail-outbox-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "database.hostname": "postgres", 
+    "database.port": "5432",
+    "database.user": "admin",
+    "database.password": "admin",
+    "database.dbname": "retail_db",
+    "topic.prefix": "retail_",
+    
+    "plugin.name": "pgoutput",
+    
+    "table.include.list": "public.outbox",
+    
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    
+    "transforms.outbox.table.field.event.id": "id",
+    "transforms.outbox.table.field.event.key": "aggregate_id",
+    "transforms.outbox.table.field.event.type": "event_type",
+    "transforms.outbox.table.field.event.payload": "payload",
+    
+    "transforms.outbox.route.topic.replacement": "${routedByValue}"
+  }
+}

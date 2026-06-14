@@ -1,0 +1,8 @@
+# Use this workspace to collaborate
+workspace:
+  id: 806d5cff-120f-4cae-873c-247fe8060dbc
+
+localResources:
+  docs:
+    - ../myenv/lib/python3.14/site-packages/pip-26.1.1.dist-info/licenses/src/pip/_vendor/idna/LICENSE.md
+    - ../myenv/lib/python3.14/site-packages/pip/_vendor/idna/LICENSE.md
