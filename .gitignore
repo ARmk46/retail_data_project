@@ -2,12 +2,14 @@
 postgres_data/
 kafka_data/
 airflow_logs/
+airflow_db_data/
 
 # Python environment & cache
 __pycache__/
 *.pyc
 .pytest_cache/
 .venv/
+.vscode/
 venv/
 
 # macOS system files
@@ -18,4 +20,5 @@ venv/
 .terraform.lock.hcl
 *.tfstate
 *.tfstate.*
+*.json
 .env

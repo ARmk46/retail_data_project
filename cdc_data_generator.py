@@ -22,7 +22,7 @@ try:
     cursor = connection.cursor()
     print("Successfully connected to Postgres retail_db! Starting generator...")
 except Exception as error:
-    print(f"❌ Failed to connect to the PostgreSQL database: {error}")
+    print(f" Failed to connect to the PostgreSQL database: {error}")
     exit(1)
 
 
@@ -35,7 +35,7 @@ def run_cdc_generator():
             if decipho <= 7:
                 
                 name = fake.name()
-                email = fake.unique().email()
+                email = fake.unique.email()
 
 
                 #insert data into customers table
@@ -49,18 +49,19 @@ def run_cdc_generator():
                 order_amount = round(random.uniform(15.99, 350.00), 2)
 
                 
-                cursor.execute("INSERT INTO transactions (customer_id, amount, order_status) VALUES (%s, %s, %s) RETURNING id;",
+                cursor.execute("INSERT INTO orders (customer_id, amount, order_status) VALUES (%s, %s, %s) RETURNING id;",
                                (new_customer_id, order_amount,'pending',))
-                  
+
+                new_order_id = cursor.fetchone()[0]  
                 print(f"✅ Inserted new Order: {new_order_id}")
                 
-                new_order_id = cursor.fetchone()[0]
+                
 
 
                 event_payload = {
                     "ordr_id" : new_order_id,
                     "ordr_amt": order_amount,
-                    "status" : 'Pending',
+                    "status" : 'pending',
                     "customer": {
                         "cust_id" : new_customer_id,
                         "cust_name" : name,
@@ -83,7 +84,7 @@ def run_cdc_generator():
                 
                 if pending_order:
                     order_id = pending_order[0]
-                    cursor.execute("UPDATE orders SET order_status = 'shipped' WHERE id = %s;", (order_id))
+                    cursor.execute("UPDATE orders SET order_status = 'shipped' WHERE id = %s;", (order_id,))
                     print(f"✅ Updated Order: {order_id} to completed")
                     connection.commit()
                 
@@ -98,7 +99,7 @@ def run_cdc_generator():
         print("\n CDC generation stopped by user")
 
     except Exception as error:
-        print(f"Erro during CDC generation:{error}")
+        print(f"Error during CDC generation:{error}")
     
     finally:
         if connection:
