@@ -9,19 +9,26 @@
     "database.password": "admin",
     "database.dbname": "retail_db",
     "topic.prefix": "retail_",
-    
     "plugin.name": "pgoutput",
-    
     "table.include.list": "public.outbox",
     
+    // 1. Activate Event Router Single Message Transform
     "transforms": "outbox",
     "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
     
+    // 2. Explicit Column Layout Overrides
     "transforms.outbox.table.field.event.id": "id",
     "transforms.outbox.table.field.event.key": "aggregate_id",
     "transforms.outbox.table.field.event.type": "event_type",
     "transforms.outbox.table.field.event.payload": "payload",
+    "transforms.outbox.table.field.event.payload.id": "id", // Redirects tracking ID away from default "payload_id"
     
-    "transforms.outbox.route.topic.replacement": "${routedByValue}"
+    // 3. Dynamic Routing Architecture Options
+    "transforms.outbox.route.by.field": "aggregate_type",
+    "transforms.outbox.route.topic.replacement": "retail_.${routedByValue}",
+    
+    // 4. Clean JSON Extraction Settings
+    "transforms.outbox.table.expand.json.payload": "true",
+    "tombstones.on.delete": "false"
   }
 }

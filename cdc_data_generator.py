@@ -39,9 +39,14 @@ def run_cdc_generator():
 
 
                 #insert data into customers table
-                cursor.execute("INSERT INTO customers (name, email) VALUES (%s, %s) RETURNING id",
-                            (name, email) 
-                        )
+                cursor.execute("""
+                                        INSERT INTO customers (name, email) 
+                                        VALUES (%s, %s) 
+                                        ON CONFLICT (email) 
+                                        DO UPDATE SET name = EXCLUDED.name 
+                                        RETURNING id
+                                    """, (name, email))
+                
                 
                 print(f"✅ Inserted new customer: {name} with email: {email}")
                 new_customer_id = cursor.fetchone()[0]
@@ -60,7 +65,7 @@ def run_cdc_generator():
 
                 event_payload = {
                     "ordr_id" : new_order_id,
-                    "ordr_amt": order_amount,
+                    "ordr_amt": float(order_amount),
                     "status" : 'pending',
                     "customer": {
                         "cust_id" : new_customer_id,
@@ -82,10 +87,32 @@ def run_cdc_generator():
                 cursor.execute("SELECT id FROM orders WHERE order_status = 'pending' ORDER BY random() LIMIT 1;")  
                 pending_order = cursor.fetchone()
                 
+                cursor.execute("SELECT id, amount, customer_id FROM orders WHERE order_status = 'pending' ORDER BY random() LIMIT 1;")  
+                pending_order = cursor.fetchone()
+                
                 if pending_order:
-                    order_id = pending_order[0]
+                    order_id, order_amount, customer_id = pending_order
+                    
+                    # 1. Update core table
                     cursor.execute("UPDATE orders SET order_status = 'shipped' WHERE id = %s;", (order_id,))
-                    print(f"✅ Updated Order: {order_id} to completed")
+                    print(f"✅ Updated Order: {order_id} to shipped")
+                    
+                    # 2. Build the Outbox payload for the state change
+                    update_payload = {
+                        "ordr_id" : order_id,
+                        "ordr_amt": float(order_amount),
+                        "status" : 'shipped',
+                        "customer": {
+                            "cust_id" : customer_id
+                        }
+                    }
+                    
+                    # 3. Write event to outbox so Debezium can stream it
+                    cursor.execute(
+                        "INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload) VALUES(%s,%s,%s,%s)", 
+                        ('RetailOrder', order_id, 'OrderShipped', json.dumps(update_payload))
+                    )
+                    
                     connection.commit()
                 
                 else:
