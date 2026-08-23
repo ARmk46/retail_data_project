@@ -6,7 +6,7 @@ services:
     ports:
       - "9092:9092"
     volumes:
-      - ./kafka_data:/var/lib/kafka/data
+      - kafka_data:/var/lib/kafka/data
     environment:
       - KAFKA_PROCESS_ROLES=broker,controller
       - KAFKA_NODE_ID=1
@@ -20,8 +20,7 @@ services:
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-  
-  
+
   kafka-connect:
     image: debezium/connect:2.5
     container_name: kafka-connect
@@ -39,12 +38,26 @@ services:
       - VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
       - CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE=false
       - CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE=false
-      # These 3 override properties prevent Kafka Connect from failing to build its management topics on a 1-node Kafka broker:
       - CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR=1
       - CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR=1
       - CONNECT_STATUS_STORAGE_REPLICATION_FACTOR=1
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_ACCESS_KEY_ID=${KAFKA_AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${KAFKA_AWS_SECRET_ACCESS_KEY}
+      - CONNECT_PLUGIN_PATH=/usr/share/java,/usr/share/kafka/plugins,/usr/share/java/kafka-connect-plugins
+      # Fixes ClassLoader isolation NPE bug for S3 Partitioners
+      - CLASSPATH=/usr/share/java/kafka-connect-plugins/confluentinc-kafka-connect-s3/lib/*
+    command:
+      - /bin/bash
+      - -c
+      - |
+        echo "==> Installing Amazon S3 Sink Connector..."
+        mkdir -p /usr/share/java/kafka-connect-plugins/confluentinc-kafka-connect-s3
+        curl -sO https://packages.confluent.io/maven/io/confluent/kafka-connect-s3/10.6.18/kafka-connect-s3-10.6.18.zip
+        unzip -o kafka-connect-s3-10.6.18.zip -d /tmp/
+        cp -r /tmp/kafka-connect-s3-10.6.18/* /usr/share/java/kafka-connect-plugins/confluentinc-kafka-connect-s3/
+        rm -rf kafka-connect-s3-10.6.18.zip /tmp/kafka-connect-s3-10.6.18
+        echo "==> Plugin installation complete. Starting Kafka Connect process..."
+        /docker-entrypoint.sh start
     depends_on:
       - kafka
 
@@ -56,7 +69,6 @@ services:
       - "5432:5432"
     volumes:
       - ./postgres_data:/var/lib/postgresql
-      
     environment:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=admin
@@ -73,7 +85,7 @@ services:
     image: postgres:18
     container_name: airflow-db
     volumes:
-      - ./airflow_db_data:/var/lib/postgresql
+      - ./airflow_db_data:/var/lib/postgresql/
     environment:
       - POSTGRES_USER=airflow
       - POSTGRES_PASSWORD=airflow
@@ -94,7 +106,6 @@ services:
     environment:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-db/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      # Automatic Admin Creation to bypass Airflow 3 CLI bug
       - AIRFLOW__FAB__AUTO_CREATE_ADMIN_USER=True
       - AIRFLOW__FAB__ADMIN_USER_USERNAME=admin
       - AIRFLOW__FAB__ADMIN_USER_PASSWORD=admin
@@ -113,3 +124,7 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-db/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     command: scheduler
+
+# ROOT VOLUME DEFINITIONS (Fixes "undefined volume kafka_data")
+volumes:
+  kafka_data:
